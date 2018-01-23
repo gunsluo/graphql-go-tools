@@ -17,11 +17,17 @@ var schemaPath = "starwars/starwars.graphql"
 func init() {
 	//var schemaDir = "starwars"
 	//dsl, err := gqltools.ImportSchemaDslFromDir(schemaDir)
-	dsl, err := gqltools.ImportSchemaDslFromPath(schemaPath)
+	//dsl, err := gqltools.ImportSchemaDslFromPath(schemaPath)
+	//if err != nil {
+	//panic(err)
+	//}
+	//schema = graphql.MustParseSchema(dsl, &starwars.Resolver{})
+	var err error
+
+	schema, err = gqltools.MakeExecutableSchema(schemaPath, &starwars.Resolver{})
 	if err != nil {
 		panic(err)
 	}
-	schema = graphql.MustParseSchema(dsl, &starwars.Resolver{})
 }
 
 func main() {

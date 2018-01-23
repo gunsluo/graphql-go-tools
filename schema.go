@@ -18,6 +18,8 @@ import (
 	"io/ioutil"
 	"os"
 	"path/filepath"
+
+	"github.com/neelance/graphql-go"
 )
 
 // ImportSchemaDslFromPath input dsl file path, return schema string.
@@ -64,6 +66,12 @@ func ImportSchemaDslFromDir(dir string) (string, error) {
 	return buffer.String(), nil
 }
 
-func MakeExecutableSchema() {
-	// TODO:
+// MakeExecutableSchema make schema
+func MakeExecutableSchema(schemaPath string, resolver interface{}, opts ...graphql.SchemaOpt) (*graphql.Schema, error) {
+	dsl, err := ImportSchemaDslFromPath(schemaPath)
+	if err != nil {
+		return nil, err
+	}
+
+	return graphql.MustParseSchema(dsl, resolver, opts...), nil
 }
