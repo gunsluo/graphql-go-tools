@@ -31,6 +31,7 @@ func (v *validation) verify(fp string) error {
 }
 
 func (v *validation) verifySyntax(data []byte) error {
+	// TODO: graphql syntax validate
 	return nil
 }
 

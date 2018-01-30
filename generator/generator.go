@@ -14,8 +14,10 @@
 package generator
 
 import (
+	"bytes"
 	"fmt"
-	"io/ioutil"
+	"io"
+	"os"
 	"path/filepath"
 	"strings"
 
@@ -66,12 +68,58 @@ func (g *Generator) verify(apath []string) error {
 }
 
 func (g *Generator) read(apath []string) error {
+	var n int64
+
+	if len(apath) == 0 {
+		return nil
+	}
+
 	for _, fp := range apath {
-		if data, err := ioutil.ReadFile(fp); err != nil {
+		f, err := os.Open(fp)
+		if err != nil {
 			return errors.Wrap(err, 0)
-		} else {
+		}
+		defer f.Close()
+
+		fi, err := f.Stat()
+		if err != nil {
+			return errors.Wrap(err, 0)
+		}
+
+		if fi.IsDir() {
+			var sapath []string
+			err := filepath.Walk(fp, func(spath string, sf os.FileInfo, err error) error {
+				if sf == nil {
+					return errors.Wrap(err, 0)
+				}
+
+				if spath != fp {
+					sapath = append(sapath, spath)
+				}
+				return nil
+			})
+			if err != nil {
+				return err
+			}
+
+			return g.read(sapath)
+		}
+
+		if size := fi.Size(); size < 1e9 {
+			n = size
+		}
+
+		if ext := filepath.Ext(fp); ext == ".graphql" {
+			data, err := readAll(f, n+bytes.MinRead)
+			if err != nil {
+				return errors.Wrap(err, 0)
+			}
 			g.caches[fp] = data
 		}
+	}
+
+	if len(g.caches) == 0 {
+		return errors.Errorf("not found graphql file.")
 	}
 
 	return nil
@@ -96,4 +144,23 @@ func (g *Generator) Output(outPath string) error {
 	}
 
 	return nil
+}
+
+func readAll(r io.Reader, capacity int64) (b []byte, err error) {
+	buf := bytes.NewBuffer(make([]byte, 0, capacity))
+	// If the buffer overflows, we will get bytes.ErrTooLarge.
+	// Return that as an error. Any other panic remains.
+	defer func() {
+		e := recover()
+		if e == nil {
+			return
+		}
+		if panicErr, ok := e.(error); ok && panicErr == bytes.ErrTooLarge {
+			err = panicErr
+		} else {
+			panic(e)
+		}
+	}()
+	_, err = buf.ReadFrom(r)
+	return buf.Bytes(), err
 }
